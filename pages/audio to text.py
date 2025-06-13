@@ -1,4 +1,5 @@
 from audiorecorder import audiorecorder
+
 import streamlit as st
 import io
 import speech_recognition as sr
@@ -42,30 +43,17 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
 
+
 st.set_page_config(layout="centered")
 
-st.subheader("Record Audio")
-recorded_audio = audiorecorder("Click to record", "Stop recording")
 
-if recorded_audio and len(recorded_audio) > 0:
-    audio_bytes = recorded_audio.tobytes()
-    st.audio(audio_bytes, format="audio/wav")
-
-    st.download_button(
-        label="Download Recorded Audio",
-        data=audio_bytes,
-        file_name="recorded_audio.wav",
-        mime="audio/wav"
-    )
-
-    process_and_transcribe(audio_bytes, source_type="recorded_audio", file_extension="wav")
-
-st.subheader("Or Upload an Audio File to Transcribe")
+st.subheader("Upload an Audio File to Transcribe")
 uploaded_file = st.file_uploader("Upload an audio file (MP3, WAV, M4A, etc.)", key="audio_uploader")
+
+
 
 if uploaded_file is not None:
     file_ext = uploaded_file.name.split('.')[-1].lower()
     process_and_transcribe(uploaded_file.read(), source_type="uploaded_file", file_extension=file_ext)
 
-st.sidebar.info("This is the Speech-to-Text page with recording and upload options.")
-
+st.sidebar.info("This is the Speech-to-Text page.")
