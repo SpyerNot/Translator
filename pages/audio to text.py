@@ -99,6 +99,9 @@ if uploaded_file is not None:
     file_ext = uploaded_file.name.split('.')[-1].lower()
     process_and_transcribe(uploaded_file.read(), source_type="uploaded file", file_extension=file_ext)
 elif recorded_audio_bytes:
-    process_and_transcribe(recorded_audio_bytes, source_type="recording")
+    if recorded_audio_bytes != b"":
+        process_and_transcribe(recorded_audio_bytes, source_type="recording")
+    else:
+        st.warning("No audio detected. Please try recording again.")
 
 st.sidebar.info("This is the Speech-to-Text page.")
