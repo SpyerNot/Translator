@@ -4,42 +4,43 @@ import speech_recognition as sr
 from pydub import AudioSegment
 from pydub.exceptions import CouldntDecodeError
 
-st.set_page_config(layout="centered")
 
+from streamlit_webrtc import webrtc_streamer, AudioProcessorBase
 
-try:
-    with st.expander("Show `requirements.txt` content", expanded=False):
-        st.code(open("requirements.txt").read())
-except FileNotFoundError:
-    st.error("CRITICAL ERROR: `requirements.txt` file not found in the repository's root directory.")
+class AudioRecorder(AudioProcessorBase):
+    def __init__(self):
+        self._frames = []
+        self.audio_segment = None
 
+    def recv(self, frame):
+        self._frames.append(frame)
+        return frame
 
+    def on_ended(self):
+        if not self._frames:
+            return
 
-try:
-    from audiorecorder import audiorecorder
-    AUDIO_RECORDER_AVAILABLE = True
-except ModuleNotFoundError:
-    st.warning("The audio recorder component is not available. Please ensure 'streamlit-audiorecorder' is in requirements.txt and reboot the app.")
-    AUDIO_RECORDER_AVAILABLE = False
+        sound = AudioSegment.empty()
+        for frame in self._frames:
+            sound += AudioSegment(
+                data=frame.to_ndarray().tobytes(),
+                sample_width=frame.format.bytes,
+                frame_rate=frame.sample_rate,
+                channels=len(frame.layout.channels),
+            )
+        self.audio_segment = sound
+        self._frames = []
 
 
 def process_and_transcribe(audio_bytes, source_type, file_extension=None):
     st.info(f"Processing audio from {source_type}... Please wait.")
     st.audio(audio_bytes)
 
-    
     try:
         format_to_use = file_extension if file_extension else "wav"
-        try:
-            audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes), format=format_to_use)
-            
-        except CouldntDecodeError:
-            st.error(
-                f"Error: Could not decode the audio file. "
-                f"The format '{format_to_use}' may be unsupported or the file is corrupt."
-            )
-            return
-
+        
+        audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes), format=format_to_use)
+        
         wav_audio_bytes_io = io.BytesIO()
         audio_segment.export(wav_audio_bytes_io, format="wav")
         wav_audio_bytes_io.seek(0)
@@ -47,6 +48,7 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
         r = sr.Recognizer()
         with sr.AudioFile(wav_audio_bytes_io) as source:
             st.write("Reading audio for transcription...")
+            
             audio_data = r.record(source)
 
         st.info("Transcribing audio... This may take a moment.")
@@ -57,6 +59,7 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
         st.success("Audio transcribed successfully!")
 
         st.download_button(
+            
             label="Download Transcription as TXT",
             data=transcribed_text,
             file_name="transcription.txt",
@@ -64,20 +67,19 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
             key=f"download_{source_type}"
         )
 
-    
+    except CouldntDecodeError:
+        st.error(f"Error: Could not decode the audio file.")
     except sr.UnknownValueError:
-        st.warning("Speech Recognition could not understand the audio. The speech might be unclear or the file may contain silence.")
-
-    
+        st.warning("Speech Recognition could not understand the audio.")
     except sr.RequestError as e:
-        st.error(f"Could not request results from Google's Speech Recognition service; check your internet connection: {e}")
-
-    
+        st.error(f"Could not request results from Google's API: {e}")
     except Exception as e:
-        st.error(f"An unexpected error occurred during transcription: {e}")
+        st.error(f"An unexpected error occurred: {e}")
 
 
-
+st.set_page_config(layout="centered")
+st.title("VerbalEyes")
+st.markdown("### See with Sound, Speak with Text") #My new slogan, do ya like itttttttttt!!!!!!!
 st.markdown("---")
 
 st.subheader("Option 1: Transcribe an Audio File")
@@ -87,24 +89,33 @@ st.markdown("<h3 style='text-align: center; color: grey;'>OR</h3>", unsafe_allow
 
 st.subheader("Option 2: Record Audio Directly")
 
-if AUDIO_RECORDER_AVAILABLE:
-    recorded_audio_bytes = audiorecorder("Click to Record")
-else:
-    st.info("Recording feature is currently disabled due to a configuration issue.")
-    recorded_audio_bytes = None
-
-
+webrtc_ctx = webrtc_streamer(
+    key="audio-recorder",
+    audio_processor_factory=AudioRecorder,
+    media_stream_constraints={"video": False, "audio": True},
+    send_audio=True,
+    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+)
 
 if uploaded_file is not None:
     file_ext = uploaded_file.name.split('.')[-1].lower()
     process_and_transcribe(uploaded_file.read(), source_type="uploaded file", file_extension=file_ext)
-elif recorded_audio_bytes:
-    if recorded_audio_bytes != b"":
-        try:
-            process_and_transcribe(recorded_audio_bytes, source_type="recording")
-        except RuntimeError:
-            st.error(f"Sorry we are still trying to make this function work")
-    else:
-        st.warning("No audio detected. Please try recording again.")
+
+elif webrtc_ctx.audio_processor and webrtc_ctx.audio_processor.audio_segment:
+
+
+    
+    st.info("Recording complete. Transcribing now...")
+    recorded_audio_segment = webrtc_ctx.audio_processor.audio_segment
+    
+    wav_bytes = io.BytesIO()
+
+    
+    recorded_audio_segment.export(wav_bytes, format="wav")
+    
+    process_and_transcribe(wav_bytes.getvalue(), source_type="recording")
+    
+    webrtc_ctx.audio_processor.audio_segment = None
+
 
 st.sidebar.info("This is the Speech-to-Text page.")
