@@ -1,4 +1,4 @@
-from st_audiorecorder import audio_recorder
+from audiorecorder import audiorecorder
 
 import streamlit as st
 import io
