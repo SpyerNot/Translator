@@ -42,16 +42,19 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
         audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes), format=format_to_use)
         
         wav_audio_bytes_io = io.BytesIO()
+
+        
         audio_segment.export(wav_audio_bytes_io, format="wav")
         wav_audio_bytes_io.seek(0)
 
         r = sr.Recognizer()
         with sr.AudioFile(wav_audio_bytes_io) as source:
             st.write("Reading audio for transcription...")
-            
             audio_data = r.record(source)
 
         st.info("Transcribing audio... This may take a moment.")
+
+        
         transcribed_text = r.recognize_google(audio_data)
 
         st.subheader("Transcribed Text:")
@@ -59,7 +62,6 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
         st.success("Audio transcribed successfully!")
 
         st.download_button(
-            
             label="Download Transcription as TXT",
             data=transcribed_text,
             file_name="transcription.txt",
@@ -79,11 +81,16 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
 
 st.set_page_config(layout="centered")
 st.title("VerbalEyes")
-st.markdown("### See with Sound, Speak with Text") #My new slogan, do ya like itttttttttt!!!!!!!
+st.markdown("### See with Sound, Speak with Text") #YAYAYAYAYAYA
 st.markdown("---")
 
 st.subheader("Option 1: Transcribe an Audio File")
 uploaded_file = st.file_uploader("Upload an audio file (MP3, WAV, M4A, etc.)", key="audio_uploader")
+
+if uploaded_file is not None:
+    file_ext = uploaded_file.name.split('.')[-1].lower()
+    process_and_transcribe(uploaded_file.read(), source_type="uploaded file", file_extension=file_ext)
+
 
 st.markdown("<h3 style='text-align: center; color: grey;'>OR</h3>", unsafe_allow_html=True)
 
@@ -96,26 +103,18 @@ webrtc_ctx = webrtc_streamer(
     rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
 )
 
-
-if uploaded_file is not None:
-    file_ext = uploaded_file.name.split('.')[-1].lower()
-    process_and_transcribe(uploaded_file.read(), source_type="uploaded file", file_extension=file_ext)
-
-elif webrtc_ctx.audio_processor and webrtc_ctx.audio_processor.audio_segment:
-
-
-    
+if not webrtc_ctx.state.playing and webrtc_ctx.audio_processor and webrtc_ctx.audio_processor.audio_segment:
     st.info("Recording complete. Transcribing now...")
-    recorded_audio_segment = webrtc_ctx.audio_processor.audio_segment
-    
-    wav_bytes = io.BytesIO()
+
 
     
-    recorded_audio_segment.export(wav_bytes, format="wav")
+    recorded_audio_segment = webrtc_ctx.audio_processor.audio_segment
+
+
     
-    process_and_transcribe(wav_bytes.getvalue(), source_type="recording")
+    wav_bytes_io = io.BytesIO()
+    recorded_audio_segment.export(wav_bytes_io, format="wav")
+    
+    process_and_transcribe(wav_bytes_io.getvalue(), source_type="recording")
     
     webrtc_ctx.audio_processor.audio_segment = None
-
-
-st.sidebar.info("This is the Speech-to-Text page.")
