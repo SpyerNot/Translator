@@ -1,32 +1,72 @@
 import streamlit as st
 import io
-from model_utils import load_stt_model, transcribe_audio 
+import speech_recognition as sr
+from pydub import AudioSegment
+from pydub.exceptions import CouldBeDangerous
+import os
 
-st.title("Audio to Text Converter")
-st.markdown("Upload an audio file (e.g., MP3, WAV) to transcribe...")
-uploaded_file = st.file_uploader("Upload an audio file", type=["wav", "mp3", "m4a"])
-stt_model = load_stt_model()
+st.set_page_config(layout="centered")
+
+st.title("Speech-to-Text Converter")
+st.markdown("Upload an audio file (e.g., MP3, WAV, M4A) to transcribe.")
+
+uploaded_file = st.file_uploader("Upload an audio file", type=["wav", "mp3", "m4a"], key="audio_uploader")
+
+
 
 if uploaded_file is not None:
     st.info("Processing audio file... Please wait.")
-    st.error("STT functionality is temporarily unavailable due to library installation issues.:))))))")
-    
+
     audio_bytes = uploaded_file.read()
     st.audio(audio_bytes, format=uploaded_file.type)
 
-
-  
-
     try:
-          transcribed_text = transcribe_audio(stt_model, audio_bytes)
-          st.subheader("Transcribed Text (Placeholder):")
-          st.text_area("Transcription", transcribed_text, height=200)
-          st.write(f"transcribe_audio(stt_model, [audio_bytes_from_upload])")
-          st.write("Output would be the transcribed text here.")
-          st.success("Audio transcribed successfully!")
+        audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes), format=uploaded_file.type.split('/')[-1])
+
+        wav_audio_bytes_io = io.BytesIO()
+        audio_segment.export(wav_audio_bytes_io, format="wav")
+        wav_audio_bytes_io.seek(0)
+
+        r = sr.Recognizer()
+
+        with sr.AudioFile(wav_audio_bytes_io) as source:
+            st.write("Reading audio for transcription...")
+            audio_data = r.record(source)
+
+        st.info("Transcribing audio... This may take a moment.")
+        
+        transcribed_text = r.recognize_google(audio_data)
+
+        st.subheader("Transcribed Text:")
+        
+        st.text_area("Transcription Result", transcribed_text, height=200, key="transcribed_text_area")
+        st.success("Audio transcribed successfully!") #YAYAYAYAYAYAYA
+
+        
+        st.download_button(
+            label="Download Transcription as TXT",
+            data=transcribed_text,
+            file_name="transcription.txt",
+            mime="text/plain",
+            key="download_transcription"
+        )
+
+    except sr.UnknownValueError:
+        st.warning("Speech Recognition could not understand audio. Please try another file or ensure speech is clear.")
+        
+    except sr.RequestError as e:
+        st.error(f"Could not request results from Google Web Speech API service; check your internet connection: {e}")
+        
+    except CouldBeDangerous as e:
+        st.error(f"Error processing audio file with pydub: {e}. The file might be corrupted or in an unsupported format.")
+        
     except Exception as e:
-         st.error(f"Error in logic: {e}")
+        st.error(f"An unexpected error occurred: {e}")
+        st.warning("Please ensure all necessary libraries are installed and `ffmpeg` is available on the system.")
+
+
 
 else:
     st.info("Please upload an audio file to begin transcription.")
+
 st.sidebar.info("This is the Speech-to-Text page.")
