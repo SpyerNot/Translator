@@ -100,7 +100,10 @@ if uploaded_file is not None:
     process_and_transcribe(uploaded_file.read(), source_type="uploaded file", file_extension=file_ext)
 elif recorded_audio_bytes:
     if recorded_audio_bytes != b"":
-        process_and_transcribe(recorded_audio_bytes, source_type="recording")
+        try:
+            process_and_transcribe(recorded_audio_bytes, source_type="recording")
+        except RuntimeError:
+            st.error(f"Sorry we are still trying to make this function work")
     else:
         st.warning("No audio detected. Please try recording again.")
 
