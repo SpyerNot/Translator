@@ -54,7 +54,7 @@ st.markdown("<h3 style='text-align: center; color: grey;'>OR</h3>", unsafe_allow
 
 st.subheader("Option 2: Record Audio Directly")
 
-recorded_audio_bytes = audio_recorder(
+recorded_audio_bytes = audiorecorder(
     text="Click to Record",
     recording_color="#e8b62c",
     neutral_color="#6a6a6a",
