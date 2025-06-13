@@ -100,10 +100,18 @@ if uploaded_file is not None:
     process_and_transcribe(uploaded_file.read(), source_type="uploaded file", file_extension=file_ext)
 elif recorded_audio_bytes:
     if recorded_audio_bytes != b"":
-        try:
-            process_and_transcribe(recorded_audio_bytes, source_type="recording")
-        except RuntimeError:
-            st.error(f"Sorry we are still trying to make this function work")
+          r = sr.Recognizer()
+    with sr.Microphone() as source:
+        st.write("Listening...")
+        audio = r.listen(source)
+    try:
+        text = r.recognize_google(audio)
+        st.write("Transcription:")
+        st.write(text)
+    except sr.UnknownValueError:
+        st.write("Could not understand audio")
+    except sr.RequestError as e:
+        st.write(f"Could not request results from Google Speech Recognition service; {e}")
     else:
         st.warning("No audio detected. Please try recording again.")
 
