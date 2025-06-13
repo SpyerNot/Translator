@@ -88,13 +88,7 @@ st.markdown("<h3 style='text-align: center; color: grey;'>OR</h3>", unsafe_allow
 st.subheader("Option 2: Record Audio Directly")
 
 if AUDIO_RECORDER_AVAILABLE:
-    recorded_audio_bytes = audiorecorder(
-        "Click to Record",
-        recording_color="#e8b62c",
-        neutral_color="#6a6a6a",
-        icon_name="microphone",
-        icon_size="3x",
-    )
+    recorded_audio_bytes = audiorecorder("Click to Record")
 else:
     st.info("Recording feature is currently disabled due to a configuration issue.")
     recorded_audio_bytes = None
