@@ -10,7 +10,6 @@ from streamlit_webrtc import webrtc_streamer, AudioProcessorBase
 class AudioRecorder(AudioProcessorBase):
     def __init__(self):
         self._frames = []
-        self.audio_segment = None
 
     def recv(self, frame):
         self._frames.append(frame)
@@ -28,8 +27,9 @@ class AudioRecorder(AudioProcessorBase):
                 frame_rate=frame.sample_rate,
                 channels=len(frame.layout.channels),
             )
-        self.audio_segment = sound
         self._frames = []
+        
+        st.session_state["audio_buffer"] = sound
 
 
 def process_and_transcribe(audio_bytes, source_type, file_extension=None):
@@ -38,12 +38,9 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
 
     try:
         format_to_use = file_extension if file_extension else "wav"
-        
         audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes), format=format_to_use)
         
         wav_audio_bytes_io = io.BytesIO()
-
-        
         audio_segment.export(wav_audio_bytes_io, format="wav")
         wav_audio_bytes_io.seek(0)
 
@@ -53,8 +50,6 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
             audio_data = r.record(source)
 
         st.info("Transcribing audio... This may take a moment.")
-
-        
         transcribed_text = r.recognize_google(audio_data)
 
         st.subheader("Transcribed Text:")
@@ -81,40 +76,41 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
 
 st.set_page_config(layout="centered")
 st.title("VerbalEyes")
-st.markdown("### See with Sound, Speak with Text") #YAYAYAYAYAYA
+st.markdown("### See with Sound, Speak with Text")
 st.markdown("---")
 
 st.subheader("Option 1: Transcribe an Audio File")
 uploaded_file = st.file_uploader("Upload an audio file (MP3, WAV, M4A, etc.)", key="audio_uploader")
 
-if uploaded_file is not None:
-    file_ext = uploaded_file.name.split('.')[-1].lower()
-    process_and_transcribe(uploaded_file.read(), source_type="uploaded file", file_extension=file_ext)
-
-
 st.markdown("<h3 style='text-align: center; color: grey;'>OR</h3>", unsafe_allow_html=True)
 
 st.subheader("Option 2: Record Audio Directly")
 
-webrtc_ctx = webrtc_streamer(
+webrtc_streamer(
     key="audio-recorder",
     audio_processor_factory=AudioRecorder,
     media_stream_constraints={"video": False, "audio": True},
     rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
 )
 
-if not webrtc_ctx.state.playing and webrtc_ctx.audio_processor and webrtc_ctx.audio_processor.audio_segment:
-    st.info("Recording complete. Transcribing now...")
 
-
+if uploaded_file is not None:
     
-    recorded_audio_segment = webrtc_ctx.audio_processor.audio_segment
+    file_ext = uploaded_file.name.split('.')[-1].lower()
+    process_and_transcribe(uploaded_file.read(), source_type="uploaded file", file_extension=file_ext)
 
-
+elif "audio_buffer" in st.session_state:
+    
+    st.info("Recording complete. Transcribing now...")
+    
+    recorded_audio_segment = st.session_state["audio_buffer"]
     
     wav_bytes_io = io.BytesIO()
     recorded_audio_segment.export(wav_bytes_io, format="wav")
     
     process_and_transcribe(wav_bytes_io.getvalue(), source_type="recording")
     
-    webrtc_ctx.audio_processor.audio_segment = None
+    del st.session_state["audio_buffer"]
+
+
+st.sidebar.info("This is the Speech-to-Text page.")
