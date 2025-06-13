@@ -2,35 +2,15 @@ import streamlit as st
 import io
 import speech_recognition as sr
 from pydub import AudioSegment
-from pydub.exceptions import CouldntDecodeError
-
-
 from streamlit_webrtc import webrtc_streamer, AudioProcessorBase
 
 class AudioRecorder(AudioProcessorBase):
     def __init__(self):
         self._frames = []
-
+    
     def recv(self, frame):
         self._frames.append(frame)
         return frame
-
-    def on_ended(self):
-        if not self._frames:
-            return
-
-        sound = AudioSegment.empty()
-        for frame in self._frames:
-            sound += AudioSegment(
-                data=frame.to_ndarray().tobytes(),
-                sample_width=frame.format.bytes,
-                frame_rate=frame.sample_rate,
-                channels=len(frame.layout.channels),
-            )
-        self._frames = []
-        
-        st.session_state["audio_buffer"] = sound
-
 
 def process_and_transcribe(audio_bytes, source_type, file_extension=None):
     st.info(f"Processing audio from {source_type}... Please wait.")
@@ -46,7 +26,6 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
 
         r = sr.Recognizer()
         with sr.AudioFile(wav_audio_bytes_io) as source:
-            st.write("Reading audio for transcription...")
             audio_data = r.record(source)
 
         st.info("Transcribing audio... This may take a moment.")
@@ -64,8 +43,6 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
             key=f"download_{source_type}"
         )
 
-    except CouldntDecodeError:
-        st.error(f"Error: Could not decode the audio file.")
     except sr.UnknownValueError:
         st.warning("Speech Recognition could not understand the audio.")
     except sr.RequestError as e:
@@ -77,37 +54,42 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
 st.set_page_config(layout="centered")
 
 st.subheader("Option 1: Transcribe an Audio File")
-uploaded_file = st.file_uploader("Upload an audio file (MP3, WAV, M4A, etc.)", key="audio_uploader")
+uploaded_file = st.file_uploader("Upload an audio file", key="audio_uploader")
+
+if uploaded_file is not None:
+    file_ext = uploaded_file.name.split('.')[-1].lower()
+    process_and_transcribe(uploaded_file.read(), source_type="uploaded_file", file_extension=file_ext)
 
 st.markdown("<h3 style='text-align: center; color: grey;'>OR</h3>", unsafe_allow_html=True)
 
 st.subheader("Option 2: Record Audio Directly")
 
-webrtc_streamer(
+webrtc_ctx = webrtc_streamer(
     key="audio-recorder",
     audio_processor_factory=AudioRecorder,
     media_stream_constraints={"video": False, "audio": True},
     rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
 )
 
+if not webrtc_ctx.state.playing and webrtc_ctx.audio_processor:
+    audio_frames = webrtc_ctx.audio_processor._frames
+    if audio_frames:
+        st.info("Recording complete. Processing audio...")
+        
+        sound = AudioSegment.empty()
+        for frame in audio_frames:
+            sound += AudioSegment(
+                data=frame.to_ndarray().tobytes(),
+                sample_width=frame.format.bytes,
+                frame_rate=frame.sample_rate,
+                channels=len(frame.layout.channels),
+            )
+        
+        webrtc_ctx.audio_processor._frames.clear()
 
-if uploaded_file is not None:
-    
-    file_ext = uploaded_file.name.split('.')[-1].lower()
-    process_and_transcribe(uploaded_file.read(), source_type="uploaded file", file_extension=file_ext)
-
-elif "audio_buffer" in st.session_state:
-    
-    st.info("Recording complete. Transcribing now...")
-    
-    recorded_audio_segment = st.session_state["audio_buffer"]
-    
-    wav_bytes_io = io.BytesIO()
-    recorded_audio_segment.export(wav_bytes_io, format="wav")
-    
-    process_and_transcribe(wav_bytes_io.getvalue(), source_type="recording")
-    
-    del st.session_state["audio_buffer"]
+        wav_bytes_io = io.BytesIO()
+        sound.export(wav_bytes_io, format="wav")
+        process_and_transcribe(wav_bytes_io.getvalue(), source_type="recording")
 
 
 st.sidebar.info("This is the Speech-to-Text page.")
