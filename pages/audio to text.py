@@ -54,13 +54,7 @@ st.markdown("<h3 style='text-align: center; color: grey;'>OR</h3>", unsafe_allow
 
 st.subheader("Option 2: Record Audio Directly")
 
-recorded_audio_bytes = audiorecorder(
-    text="Click to Record",
-    recording_color="#e8b62c",
-    neutral_color="#6a6a6a",
-    icon_name="microphone",
-    icon_size="3x",
-)
+recorded_audio_bytes = audiorecorder("Click to Record")
 
 if uploaded_file is not None:
     file_ext = uploaded_file.name.split('.')[-1].lower()
