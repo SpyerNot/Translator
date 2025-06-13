@@ -2,7 +2,7 @@ import streamlit as st
 import io
 import speech_recognition as sr
 from pydub import AudioSegment
-from pydub.exceptions import PyDubError
+
 import os
 
 st.set_page_config(layout="centered")
@@ -56,9 +56,6 @@ if uploaded_file is not None:
         
     except sr.RequestError as e:
         st.error(f"Could not request results from Google Web Speech API service; check your internet connection: {e}")
-        
-    except PyDubError as e:
-        st.error(f"Error processing audio file with pydub: {e}. The file might be corrupted or in an unsupported format.")
         
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
