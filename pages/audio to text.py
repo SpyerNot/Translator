@@ -53,9 +53,8 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
 
 
 st.set_page_config(layout="centered")
-st.title("VerbalEyes")
-st.markdown("### See with Sound, Speak with Text")
-st.markdown("---")
+st.title("Speech-To-Text Converter")
+
 
 if "is_recording" not in st.session_state:
     st.session_state.is_recording = False
