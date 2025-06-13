@@ -16,7 +16,7 @@ except FileNotFoundError:
 
 
 try:
-    from st_audiorecorder import audio_recorder
+    from streamlit_audiorecorder import audiorecorder
     AUDIO_RECORDER_AVAILABLE = True
 except ModuleNotFoundError:
     st.warning("The audio recorder component is not available. Please ensure 'streamlit-audiorecorder' is in requirements.txt and reboot the app.")
