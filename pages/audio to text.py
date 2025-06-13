@@ -93,9 +93,9 @@ webrtc_ctx = webrtc_streamer(
     key="audio-recorder",
     audio_processor_factory=AudioRecorder,
     media_stream_constraints={"video": False, "audio": True},
-    send_audio=True,
     rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
 )
+
 
 if uploaded_file is not None:
     file_ext = uploaded_file.name.split('.')[-1].lower()
