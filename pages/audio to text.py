@@ -45,9 +45,7 @@ def process_and_transcribe(audio_bytes, source_type, file_extension=None):
 
 
 st.set_page_config(layout="centered")
-st.title("VerbalEyes")
-st.markdown("### See with Sound, Speak with Text")
-st.markdown("---")
+
 
 st.subheader("Upload an Audio File to Transcribe")
 uploaded_file = st.file_uploader("Upload an audio file (MP3, WAV, M4A, etc.)", key="audio_uploader")
