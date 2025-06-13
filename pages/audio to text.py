@@ -89,7 +89,7 @@ st.subheader("Option 2: Record Audio Directly")
 
 if AUDIO_RECORDER_AVAILABLE:
     recorded_audio_bytes = audiorecorder(
-        text="Click to Record",
+        "Click to Record",
         recording_color="#e8b62c",
         neutral_color="#6a6a6a",
         icon_name="microphone",
