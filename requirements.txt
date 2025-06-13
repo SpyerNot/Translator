@@ -1,4 +1,4 @@
-streamlit
+streamlit==1.33.0
 gTTS
 SpeechRecognition
 pydub==0.25.1
