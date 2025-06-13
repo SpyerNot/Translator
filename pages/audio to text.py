@@ -50,11 +50,7 @@ st.set_page_config(layout="centered")
 st.subheader("Upload an Audio File to Transcribe")
 uploaded_file = st.file_uploader("Upload an audio file (MP3, WAV, M4A, etc.)", key="audio_uploader")
 
-st.markdown("<h3 style='text-align: center; color: grey;'>OR</h3>", unsafe_allow_html=True)
 
-st.subheader("Option 2: Record Audio Directly")
-
-recorded_audio_bytes = audiorecorder("Click to Record")
 
 if uploaded_file is not None:
     file_ext = uploaded_file.name.split('.')[-1].lower()
