@@ -1,59 +1,90 @@
 from audiorecorder import audiorecorder
-
 import streamlit as st
 import io
 import speech_recognition as sr
 from pydub import AudioSegment
 
-def process_and_transcribe(audio_bytes, source_type, file_extension=None):
-    st.info(f"Processing audio from {source_type}... Please wait.")
-    st.audio(audio_bytes)
-
+def transcribe_audio(audio_segment):
     try:
-        format_to_use = file_extension if file_extension else "wav"
-        audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes), format=format_to_use)
-        
-        wav_audio_bytes_io = io.BytesIO()
-        audio_segment.export(wav_audio_bytes_io, format="wav")
-        wav_audio_bytes_io.seek(0)
-
+        wav_io = io.BytesIO()
+        audio_segment.export(wav_io, format="wav")
+        wav_io.seek(0)
         r = sr.Recognizer()
-        with sr.AudioFile(wav_audio_bytes_io) as source:
+        with sr.AudioFile(wav_io) as source:
             audio_data = r.record(source)
+        text = r.recognize_google(audio_data)
+        return text
+    except sr.UnknownValueError:
+        st.warning("Could not understand audio.")
+        return None
+    except sr.RequestError as e:
+        st.error(f"Speech Recognition API error: {e}")
+        return None
+    except Exception as e:
+        st.error(f"Unexpected error: {e}")
+        return None
 
-        st.info("Transcribing audio... This may take a moment.")
-        transcribed_text = r.recognize_google(audio_data)
-
-        st.subheader("Transcribed Text:")
-        st.text_area("Transcription Result", transcribed_text, height=200, key=f"transcribed_text_{source_type}")
-        st.success("Audio transcribed successfully!")
-
+def process_uploaded_audio(audio_bytes, file_extension):
+    try:
+        audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes), format=file_extension)
+    except Exception as e:
+        st.error(f"Could not process uploaded audio: {e}")
+        return
+    st.audio(audio_bytes)
+    transcription = transcribe_audio(audio_segment)
+    if transcription:
+        st.subheader("Transcription")
+        st.text_area("Transcribed text:", transcription, height=200)
         st.download_button(
-            label="Download Transcription as TXT",
-            data=transcribed_text,
+            "Download Transcription as TXT",
+            data=transcription,
             file_name="transcription.txt",
             mime="text/plain",
-            key=f"download_{source_type}"
         )
 
-    except sr.UnknownValueError:
-        st.warning("Speech Recognition could not understand the audio.")
-    except sr.RequestError as e:
-        st.error(f"Could not request results from Google's API: {e}")
-    except Exception as e:
-        st.error(f"An unexpected error occurred: {e}")
-
-
 st.set_page_config(layout="centered")
+st.title("Record or Upload Audio to Transcribe & Save")
 
+recorded_audio = audiorecorder("Click to record", "Stop recording")
 
-st.subheader("Upload an Audio File to Transcribe")
-uploaded_file = st.file_uploader("Upload an audio file (MP3, WAV, M4A, etc.)", key="audio_uploader")
+if recorded_audio is not None and len(recorded_audio) > 0:
+    if isinstance(recorded_audio, AudioSegment):
+        audio_segment = recorded_audio
+    else:
+        st.error(f"Unsupported audio data format: {type(recorded_audio)}")
+        audio_segment = None
+    if audio_segment:
+        wav_io = io.BytesIO()
+        audio_segment.export(wav_io, format="wav")
+        wav_io.seek(0)
+        wav_bytes = wav_io.read()
+        st.audio(wav_bytes, format="audio/wav")
+        transcription = transcribe_audio(audio_segment)
+        if transcription:
+            st.subheader("Transcription")
+            st.text_area("Transcribed text:", transcription, height=200)
+            st.download_button(
+                "Download Transcription as TXT",
+                data=transcription,
+                file_name="transcription.txt",
+                mime="text/plain",
+            )
+        st.download_button(
+            "Download Recorded Audio as WAV",
+            data=wav_bytes,
+            file_name="recorded_audio.wav",
+            mime="audio/wav",
+        )
+else:
+    st.info("Click the record button to start recording.")
 
-
+st.subheader("Or upload an audio file to transcribe")
+uploaded_file = st.file_uploader("Upload an audio file (MP3, WAV, M4A, etc.)")
 
 if uploaded_file is not None:
     file_ext = uploaded_file.name.split('.')[-1].lower()
-    process_and_transcribe(uploaded_file.read(), source_type="uploaded_file", file_extension=file_ext)
+    audio_bytes = uploaded_file.read()
+    process_uploaded_audio(audio_bytes, file_ext)
 
-st.sidebar.info("This is the Speech-to-Text page.")
+st.sidebar.info("This is the Text to Speech page")
+
